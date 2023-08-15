@@ -276,10 +276,6 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 	return out;
 }
 
-function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
-	return frame.map(color => increaseLuminosity(color, luminosity));
-}
-
 (async () => {
 	const twinkly = new RealtimeTwinkly("192.168.1.113");
 	await twinkly.init();
@@ -295,8 +291,8 @@ function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
 		let offset = Math.floor(scaledTime);
 		let t = scaledTime % 1;
 
-		let a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
-		let b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
+		const a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
+		const b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
 
 		await twinkly.sendFrame(lerpFrame(a, b, t));
 	}, 1000 / twinkly.frameRate);
