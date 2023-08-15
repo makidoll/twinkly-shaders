@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from "axios";
 import { randomBytes } from "crypto";
 import * as udp from "dgram";
+import colorConvert from "color-convert";
 
 interface Color {
 	r: number;
@@ -261,11 +262,23 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 	return out;
 }
 
+function increaseLuminosity(color: Color, luminosity: number): Color {
+	const hsl = colorConvert.rgb.hsl(color.r, color.g, color.b);
+	hsl[2] = Math.min(hsl[2] + luminosity, 100);
+	const rgb = colorConvert.hsl.rgb(hsl[0], hsl[1], hsl[2]);
+	return { r: rgb[0], g: rgb[1], b: rgb[2] };
+}
+
+function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
+	return frame.map(color => increaseLuminosity(color, luminosity));
+}
+
 (async () => {
 	const twinkly = new RealtimeTwinkly("192.168.1.113");
 	await twinkly.init();
 
 	const offsetPerSecond = 3;
+	const luminosity = 10;
 
 	const startTime = Date.now() / 1000;
 
@@ -276,8 +289,11 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 		let offset = Math.floor(scaledTime);
 		let t = scaledTime % 1;
 
-		const a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
-		const b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
+		let a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
+		let b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
+
+		a = increaseLuminosityFrame(a, luminosity);
+		b = increaseLuminosityFrame(b, luminosity);
 
 		await twinkly.sendFrame(lerpFrame(a, b, t));
 	}, 1000 / twinkly.frameRate);
