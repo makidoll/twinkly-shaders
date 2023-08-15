@@ -195,13 +195,27 @@ const GnomeDarkStripesColors = [
 	{ r: 0xe6, g: 0x61, b: 0x00 },
 ];
 
+function increaseLuminosity(color: Color, luminosity: number): Color {
+	const hsl = colorConvert.rgb.hsl(color.r, color.g, color.b);
+	hsl[2] = Math.min(hsl[2] + luminosity, 100);
+	const rgb = colorConvert.hsl.rgb(hsl[0], hsl[1], hsl[2]);
+	return { r: rgb[0], g: rgb[1], b: rgb[2] };
+}
+
 // gamma correct
+// increase luminosity
+
 for (let i = 0; i < GnomeDarkStripesColors.length; i++) {
 	GnomeDarkStripesColors[i] = {
 		r: Math.pow(GnomeDarkStripesColors[i].r / 255, 2.2) * 255,
 		g: Math.pow(GnomeDarkStripesColors[i].g / 255, 2.2) * 255,
 		b: Math.pow(GnomeDarkStripesColors[i].b / 255, 2.2) * 255,
 	};
+
+	GnomeDarkStripesColors[i] = increaseLuminosity(
+		GnomeDarkStripesColors[i],
+		10,
+	);
 }
 
 function gnomeDarkStripes(size: number, offset: number = 0) {
@@ -262,13 +276,6 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 	return out;
 }
 
-function increaseLuminosity(color: Color, luminosity: number): Color {
-	const hsl = colorConvert.rgb.hsl(color.r, color.g, color.b);
-	hsl[2] = Math.min(hsl[2] + luminosity, 100);
-	const rgb = colorConvert.hsl.rgb(hsl[0], hsl[1], hsl[2]);
-	return { r: rgb[0], g: rgb[1], b: rgb[2] };
-}
-
 function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
 	return frame.map(color => increaseLuminosity(color, luminosity));
 }
@@ -278,7 +285,6 @@ function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
 	await twinkly.init();
 
 	const offsetPerSecond = 3;
-	const luminosity = 10;
 
 	const startTime = Date.now() / 1000;
 
@@ -291,9 +297,6 @@ function increaseLuminosityFrame(frame: Color[], luminosity: number): Color[] {
 
 		let a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
 		let b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
-
-		a = increaseLuminosityFrame(a, luminosity);
-		b = increaseLuminosityFrame(b, luminosity);
 
 		await twinkly.sendFrame(lerpFrame(a, b, t));
 	}, 1000 / twinkly.frameRate);
