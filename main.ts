@@ -127,13 +127,15 @@ class RealtimeTwinkly {
 		});
 	}
 
-	async init() {
+	async init(dontInitUdpClient = false) {
 		await this.loginAndVerify();
 		await this.getInfo();
 		await this.setMode("rt");
 
-		if (this.udpClient) this.udpClient.close();
-		this.udpClient = udp.createSocket("udp4");
+		if (!dontInitUdpClient) {
+			if (this.udpClient) this.udpClient.close();
+			this.udpClient = udp.createSocket("udp4");
+		}
 	}
 
 	private async sendFrameArray(frame: Uint8Array) {
@@ -279,6 +281,10 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 (async () => {
 	const twinkly = new RealtimeTwinkly("192.168.1.113");
 	await twinkly.init();
+
+	setInterval(() => {
+		twinkly.init(true); // keep alive
+	}, 1000 * 60 * 30); // 30 minutes
 
 	const offsetPerSecond = 3;
 
