@@ -284,7 +284,7 @@ function lerpFrame(a: Color[], b: Color[], t: number) {
 
 	setInterval(() => {
 		twinkly.init(true); // keep alive
-	}, 1000 * 60 * 30); // 30 minutes
+	}, 1000 * 60 * 5); // 5 minutes
 
 	const offsetPerSecond = 3;
 
