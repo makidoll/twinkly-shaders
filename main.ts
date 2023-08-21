@@ -261,17 +261,20 @@ function gnomeDarkStripes(size: number, offset: number = 0) {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-function lerpFrame(a: Color[], b: Color[], t: number) {
-	const length = Math.min(a.length, b.length);
+function lerpFrame(_1: Color[], _2: Color[], t: number) {
+	const length = Math.min(_1.length, _2.length);
 
 	let out: Color[] = [];
 
 	for (let i = 0; i < length; i++) {
 		out.push({
-			r: lerp(a[i].r, b[i].r, t),
-			g: lerp(a[i].g, b[i].g, t),
-			b: lerp(a[i].b, b[i].b, t),
-			w: a[i].w != null && b[i].w != null ? lerp(a[i].b, b[i].b, t) : 0,
+			r: lerp(_1[i].r, _2[i].r, t),
+			g: lerp(_1[i].g, _2[i].g, t),
+			b: lerp(_1[i].b, _2[i].b, t),
+			w:
+				_1[i].w != null && _2[i].w != null
+					? lerp((_1[i] as any).w, (_2[i] as any).w, t)
+					: 0,
 		});
 	}
 
