@@ -18,7 +18,7 @@ Update IP address near bottom of `main.ts`
 switch:
     - platform: rest
       name: Maki's Twinkly Lights
-      icon: string-lights
+      icon: mdi:string-lights
       resource: http://192.168.1.10:12345/api/active
       state_resource: http://192.168.1.10:12345/api/active
       method: post # cant use get for state
