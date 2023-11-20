@@ -381,10 +381,14 @@ function setActive(newActive: boolean) {
 }
 
 app.post("/api/active", async (c: Context) => {
-	const body = await c.req.json();
-	if (body.active == null) return c.json({ error: "Specify if active" }, 400);
-	setActive(body.active);
-	return c.json({ success: true, active });
+	try {
+		const body = await c.req.json();
+		if (body.active == null) throw new Error();
+		setActive(body.active);
+		return c.json({ success: true, active });
+	} catch (error) {
+		return c.json({ error: "Specify if active" }, 400);
+	}
 });
 
 app.post("/api/active/toggle", (c: Context) => {
