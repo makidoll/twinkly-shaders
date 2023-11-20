@@ -375,7 +375,7 @@ app.post("/api/toggle", (c: Context) => {
 	active = !active;
 	opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
 
-	return c.json({ success: true });
+	return c.json({ success: true, active });
 });
 
 Deno.serve({ port: Number(Deno.env.get("PORT") ?? 12345) }, app.fetch);
