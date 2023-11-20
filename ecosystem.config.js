@@ -2,7 +2,9 @@ module.exports = {
 	apps: [
 		{
 			name: "Twinkly Shaders",
-			script: "npm run start",
+			interpreter: "deno",
+			interpreter_args: "run --allow-net --unstable",
+			script: "main.ts",
 		},
 	],
 };

@@ -1,7 +1,6 @@
-import axios, { AxiosResponse } from "axios";
-import { randomBytes } from "crypto";
-import * as udp from "dgram";
-import colorConvert from "color-convert";
+import * as bytes from "https://deno.land/std@0.207.0/bytes/mod.ts";
+import axios, { AxiosResponse } from "npm:axios";
+import colorConvert from "npm:color-convert";
 
 interface Color {
 	r: number;
@@ -10,21 +9,39 @@ interface Color {
 	w?: number;
 }
 
+function randomHexString(byteSize: number) {
+	return new Array(byteSize)
+		.fill(0)
+		.map(() =>
+			Math.floor(Math.random() * 255)
+				.toString(16)
+				.padStart(2, "0"),
+		)
+		.join("");
+}
+
 class RealtimeTwinkly {
-	private authToken: string;
-	private authTokenBuffer: Buffer;
+	private authToken: string = "";
+	private authTokenBuffer: Uint8Array = new Uint8Array(0);
 
-	public numberOfLeds: number;
-	public bytesPerLed: number;
-	public frameRate: number;
+	public numberOfLeds: number = -1;
+	public bytesPerLed: number = -1;
+	public frameRate: number = -1;
 
-	private udpClient: udp.Socket;
+	private udpClient: Deno.DatagramConn | null = null;
+	private udpAddress: Deno.NetAddr;
 
-	constructor(public readonly ip: string) {}
+	constructor(public readonly ip: string) {
+		this.udpAddress = {
+			transport: "udp",
+			hostname: ip,
+			port: 7777,
+		};
+	}
 
 	// https://xled-docs.readthedocs.io/en/latest/rest_api.html
 
-	private errors = {
+	private errors: { [code: number]: string } = {
 		1000: "OK",
 		1001: "Error",
 		1101: "Invalid argument value",
@@ -63,14 +80,19 @@ class RealtimeTwinkly {
 		const loginRes = await axios("http://" + this.ip + "/xled/v1/login", {
 			method: "POST",
 			data: {
-				challenge: randomBytes(256).toString("hex"),
+				challenge: randomHexString(256),
 			},
 		});
 
 		this.handleError(loginRes);
 
 		this.authToken = loginRes.data.authentication_token;
-		this.authTokenBuffer = Buffer.from(this.authToken, "base64");
+
+		// https://developer.mozilla.org/en-US/docs/Glossary/Base64
+		// isnt really the best way to do it, but it works for this
+		this.authTokenBuffer = Uint8Array.from(atob(this.authToken), c =>
+			c.charCodeAt(0),
+		);
 
 		const verifyRes = await axios("http://" + this.ip + "/xled/v1/verify", {
 			method: "POST",
@@ -100,6 +122,10 @@ class RealtimeTwinkly {
 	}
 
 	private async sendFrameFragment(fragment: number, frame: Uint8Array) {
+		if (this.udpClient == null) {
+			throw new Error("UDP client not initialized, ignoring frame");
+		}
+
 		if (frame.length > 900) {
 			throw new Error(
 				"Can't send frame fragment bigger than 900 in length",
@@ -108,23 +134,29 @@ class RealtimeTwinkly {
 
 		// https://xled-docs.readthedocs.io/en/latest/protocol_details.html#version-3
 
-		const header = Buffer.alloc(this.authTokenBuffer.length + 4);
+		const header = new Uint8Array(this.authTokenBuffer.length + 4);
 
-		header.writeUInt8(0x03);
-		header.fill(this.authTokenBuffer, 1);
-		header.writeUInt8(0x00, this.authTokenBuffer.length + 1);
-		header.writeUInt8(0x00, this.authTokenBuffer.length + 2);
-		header.writeUInt8(fragment, this.authTokenBuffer.length + 3);
+		let i = 0;
+		header[i++] = 0x03;
+		bytes.copy(this.authTokenBuffer, header, i);
+		i += this.authTokenBuffer.length;
+		header[i++] = 0x00;
+		header[i++] = 0x00;
+		header[i++] = fragment;
 
-		const data = Buffer.alloc(header.length + frame.length);
-		data.fill(header);
-		data.fill(frame, header.length);
+		const data = new Uint8Array(header.length + frame.length);
 
-		this.udpClient.send(data, 7777, this.ip, error => {
-			if (error) {
-				console.warn(error);
-			}
-		});
+		i = 0;
+		bytes.copy(header, data, i);
+		i += header.length;
+		bytes.copy(frame, data, i);
+		i += header.length;
+
+		try {
+			await this.udpClient.send(data, this.udpAddress);
+		} catch (error) {
+			console.warn(error);
+		}
 	}
 
 	async init(dontInitUdpClient = false) {
@@ -134,7 +166,11 @@ class RealtimeTwinkly {
 
 		if (!dontInitUdpClient) {
 			if (this.udpClient) this.udpClient.close();
-			this.udpClient = udp.createSocket("udp4");
+			this.udpClient = Deno.listenDatagram({
+				port: 0, // let os choose
+				transport: "udp",
+				hostname: "0.0.0.0",
+			});
 		}
 	}
 
@@ -281,28 +317,26 @@ function lerpFrame(_1: Color[], _2: Color[], t: number) {
 	return out;
 }
 
-(async () => {
-	const twinkly = new RealtimeTwinkly("192.168.1.113");
-	await twinkly.init();
+const twinkly = new RealtimeTwinkly("192.168.1.113");
+await twinkly.init();
 
-	setInterval(() => {
-		twinkly.init(true); // keep alive
-	}, 1000 * 60); // every minute
+setInterval(() => {
+	twinkly.init(true); // keep alive
+}, 1000 * 60); // every minute
 
-	const offsetPerSecond = 3;
+const offsetPerSecond = 3;
 
-	const startTime = Date.now() / 1000;
+const startTime = Date.now() / 1000;
 
-	setInterval(async () => {
-		let time = Date.now() / 1000 - startTime;
+setInterval(async () => {
+	let time = Date.now() / 1000 - startTime;
 
-		let scaledTime = time * offsetPerSecond;
-		let offset = Math.floor(scaledTime);
-		let t = scaledTime % 1;
+	let scaledTime = time * offsetPerSecond;
+	let offset = Math.floor(scaledTime);
+	let t = scaledTime % 1;
 
-		const a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
-		const b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
+	const a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
+	const b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
 
-		await twinkly.sendFrame(lerpFrame(a, b, t));
-	}, 1000 / twinkly.frameRate);
-})();
+	await twinkly.sendFrame(lerpFrame(a, b, t));
+}, 1000 / twinkly.frameRate);
