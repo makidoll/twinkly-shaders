@@ -371,10 +371,24 @@ setInterval(async () => {
 
 const app = new Hono();
 
-app.post("/api/toggle", (c: Context) => {
-	active = !active;
-	opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
+app.get("/api/active", (c: Context) => {
+	return c.json({ active });
+});
 
+function setActive(newActive: boolean) {
+	active = newActive;
+	opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
+}
+
+app.post("/api/active", async (c: Context) => {
+	const body = await c.req.json();
+	if (body.active == null) return c.json({ error: "Specify if active" }, 400);
+	setActive(body.active);
+	return c.json({ success: true, active });
+});
+
+app.post("/api/active/toggle", (c: Context) => {
+	setActive(!active);
 	return c.json({ success: true, active });
 });
 
