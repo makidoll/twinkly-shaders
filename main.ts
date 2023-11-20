@@ -371,29 +371,16 @@ setInterval(async () => {
 
 const app = new Hono();
 
-app.get("/api/active", (c: Context) => {
-	return c.json({ active });
-});
-
-function setActive(newActive: boolean) {
-	active = newActive;
-	opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
-}
-
 app.post("/api/active", async (c: Context) => {
 	try {
 		const body = await c.req.json();
 		if (body.active == null) throw new Error();
-		setActive(body.active);
-		return c.json({ success: true, active });
-	} catch (error) {
-		return c.json({ error: "Specify if active" }, 400);
-	}
-});
 
-app.post("/api/active/toggle", (c: Context) => {
-	setActive(!active);
-	return c.json({ success: true, active });
+		active = body.active;
+		opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
+	} catch (error) {}
+
+	return c.json({ active });
 });
 
 Deno.serve({ port: Number(Deno.env.get("PORT") ?? 12345) }, app.fetch);
