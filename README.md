@@ -8,4 +8,4 @@
 
 -   Update IP address near bottom of `main.ts`
 
--   `deno run --allow-net --allow-read --unstable main.ts` or `pm2 start ecosystem.config.js`
+-   `deno run -A --unstable main.ts` or `pm2 start ecosystem.config.js`
