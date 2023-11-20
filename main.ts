@@ -1,6 +1,9 @@
 import * as bytes from "https://deno.land/std@0.207.0/bytes/mod.ts";
+import { Context, Hono } from "https://deno.land/x/hono@v3.10.0/mod.ts";
 import axios, { AxiosResponse } from "npm:axios";
 import colorConvert from "npm:color-convert";
+import { Easing } from "./easing-functions.ts";
+import { TweenManager } from "./tween-manager.ts";
 
 interface Color {
 	r: number;
@@ -328,7 +331,28 @@ const offsetPerSecond = 3;
 
 const startTime = Date.now() / 1000;
 
+const tweenManager = new TweenManager();
+
+let active = true;
+let opacity = 1;
+const opacityTweener = tweenManager.newTweener(o => {
+	opacity = o;
+}, 1);
+
+const blankFrame = new Array<Color>(twinkly.numberOfLeds).fill({
+	r: 0,
+	g: 0,
+	b: 0,
+});
+
 setInterval(async () => {
+	tweenManager.update();
+
+	if (opacity == 0) {
+		await twinkly.sendFrame(blankFrame);
+		return;
+	}
+
 	let time = Date.now() / 1000 - startTime;
 
 	let scaledTime = time * offsetPerSecond;
@@ -338,5 +362,20 @@ setInterval(async () => {
 	const a = gnomeDarkStripes(twinkly.numberOfLeds, offset);
 	const b = gnomeDarkStripes(twinkly.numberOfLeds, offset + 1);
 
-	await twinkly.sendFrame(lerpFrame(a, b, t));
+	const frame = lerpFrame(a, b, t);
+
+	await twinkly.sendFrame(
+		opacity == 1 ? frame : lerpFrame(blankFrame, frame, opacity),
+	);
 }, 1000 / twinkly.frameRate);
+
+const app = new Hono();
+
+app.post("/api/toggle", (c: Context) => {
+	active = !active;
+	opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
+
+	return c.json({ success: true });
+});
+
+Deno.serve({ port: Number(Deno.env.get("PORT") ?? 12345) }, app.fetch);
