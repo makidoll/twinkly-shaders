@@ -55,6 +55,10 @@ setInterval(async () => {
 
 const app = new Hono();
 
+app.get("/api/active", async (c: Context) => {
+	return c.json({ active });
+});
+
 app.post("/api/active", async (c: Context) => {
 	try {
 		const body = await c.req.json();
