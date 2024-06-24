@@ -40,14 +40,18 @@ if (init) {
 	console.log("Finished uploading movies");
 }
 
-await twinkly.setMovie(0);
+await twinkly.setMovie(0, false);
 
 const tweenManager = new TweenManager();
 
-let active = true;
-const opacityTweener = tweenManager.newTweener(async o => {
-	await twinkly.setBrightness(o);
-}, 1);
+let active = (await twinkly.getMode()) == "movie";
+
+const opacityTweener = tweenManager.newTweener(
+	async o => {
+		await twinkly.setBrightness(o);
+	},
+	active ? 1 : 0,
+);
 
 setInterval(async () => {
 	tweenManager.update();

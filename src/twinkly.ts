@@ -147,7 +147,7 @@ export class Twinkly {
 		release();
 	}
 
-	private async setMode(mode: "off" | "rt" | "movie") {
+	public async setMode(mode: "off" | "rt" | "movie") {
 		return await this.req("/xled/v1/led/mode", {
 			method: "POST",
 			headers: {
@@ -157,6 +157,16 @@ export class Twinkly {
 				mode,
 			},
 		});
+	}
+
+	public async getMode(): Promise<"off" | "rt" | "movie"> {
+		const res = await this.req("/xled/v1/led/mode", {
+			method: "GET",
+			headers: {
+				"X-Auth-Token": this.authToken,
+			},
+		});
+		return res.mode;
 	}
 
 	private async sendFrameFragment(fragment: number, frame: Uint8Array) {
@@ -340,7 +350,7 @@ export class Twinkly {
 		return newMovieData.id as number;
 	}
 
-	async setMovie(id: number) {
+	async setMovie(id: number, now = true) {
 		const data = await this.req("/xled/v1/movies/current", {
 			method: "POST",
 			headers: {
@@ -350,7 +360,9 @@ export class Twinkly {
 				id,
 			},
 		});
-		await this.setMode("movie");
+		if (now) {
+			await this.setMode("movie");
+		}
 		return data;
 	}
 
