@@ -10,7 +10,7 @@ export interface Color {
 	w?: number;
 }
 
-function randomHexString(byteSize: number) {
+export function randomHexString(byteSize: number) {
 	return new Array(byteSize)
 		.fill(0)
 		.map(() =>

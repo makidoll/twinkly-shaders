@@ -1,4 +1,5 @@
 import { Context, Hono } from "https://deno.land/x/hono@v3.10.0/mod.ts";
+import { Easing } from "./easing-functions.ts";
 import { TweenManager } from "./tween-manager.ts";
 import {
 	Color,
@@ -6,8 +7,8 @@ import {
 	Twinkly,
 	gnomeDarkStripes,
 	lerpFrame,
+	randomHexString,
 } from "./twinkly.ts";
-import { Easing } from "./easing-functions.ts";
 
 const init = Deno.args.includes("--init");
 
@@ -46,9 +47,22 @@ const tweenManager = new TweenManager();
 
 let active = (await twinkly.getMode()) == "movie";
 
+let currentlySettingBrightness = false;
+let currentlySettingBrightnessReqId: string;
+
 const opacityTweener = tweenManager.newTweener(
 	async o => {
-		await twinkly.setBrightness(o);
+		if (currentlySettingBrightness) {
+			return;
+		}
+		// only set brightness if we're able to
+		try {
+			currentlySettingBrightness = true;
+			await twinkly.setBrightness(o);
+		} catch (e) {
+		} finally {
+			currentlySettingBrightness = false;
+		}
 	},
 	active ? 1 : 0,
 );
@@ -69,7 +83,25 @@ app.post("/api/active", async (c: Context) => {
 		if (body.active == null) throw new Error();
 
 		active = body.active;
-		opacityTweener.tween(active ? 1 : 0, 2000, Easing.Out);
+
+		const time = 2000;
+		opacityTweener.tween(active ? 1 : 0, time, Easing.Out);
+
+		// make sure we send a final request to ensure
+		let reqId = randomHexString(8);
+		currentlySettingBrightnessReqId = reqId;
+
+		const ensureBrightness = async () => {
+			if (currentlySettingBrightnessReqId != reqId) {
+				// already transitioning to something else
+				return;
+			}
+			// TODO: should cancel other req
+			await twinkly.setBrightness(active ? 1 : 0);
+		};
+
+		setTimeout(ensureBrightness, time);
+		setTimeout(ensureBrightness, time * 1.5);
 	} catch (error) {}
 
 	return c.json({ active });
